@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>100-Question Exam Engine</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #f4f6f9;
+            color: #333;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .quiz-container {
+            background: #ffffff;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+            width: 100%;
+            max-width: 650px;
+            padding: 24px;
+            box-sizing: border-box;
+        }
+
+        /* Progress Table Grid (Auto-wrapping for 100 blocks) */
+        .progress-grid {
+            display: grid;
+            grid-template-columns: repeat(10, 1fr); /* 10 blocks per row */
+            gap: 6px;
+            margin-bottom: 24px;
+            max-height: 180px;
+            overflow-y: auto; /* Adds scrolling if space gets tight */
+            padding-right: 4px;
+        }
+
+        .progress-block {
+            background-color: #e2e8f0;
+            color: #64748b;
+            text-align: center;
+            padding: 6px 0;
+            border-radius: 4px;
+            font-weight: 600;
+            font-size: 11px;
+            transition: all 0.2s ease;
+            border: 2px solid transparent;
+        }
+
+        .progress-block.active {
+            border-color: #3b82f6;
+            color: #3b82f6;
+            background-color: #eff6ff;
+        }
+
+        .progress-block.answered {
+            background-color: #10b981;
+            color: white;
+        }
+
+        .question-text {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 20px;
+            line-height: 1.4;
+        }
+
+        .options-container {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin-bottom: 24px;
+        }
+
+        .option-btn {
+            background-color: #ffffff;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 14px;
+            text-align: left;
+            font-size: 15px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            width: 100%;
+        }
+
+        .option-btn:hover:not(:disabled) {
+            background-color: #f8fafc;
+            border-color: #cbd5e1;
+        }
+
+        .option-btn:disabled {
+            cursor: not-allowed;
+        }
+
+        .option-btn.correct {
+            background-color: #d1fae5;
+            border-color: #10b981;
+            color: #065f46;
+            font-weight: 600;
+        }
+
+        .option-btn.wrong {
+            background-color: #fee2e2;
+            border-color: #ef4444;
+            color: #991b1b;
+        }
+
+        .controls {
+            display: flex;
+            justify-content: flex-end;
+        }
+
+        .next-btn {
+            background-color: #3b82f6;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+            display: none;
+        }
+
+        .next-btn:hover {
+            background-color: #2563eb;
+        }
+    </style>
+</head>
+<body>
+
+<div class="quiz-container">
+    <!-- Progress Grid Header (Generated via JS for efficiency) -->
+    <div class="progress-grid" id="progressGrid"></div>
+
+    <!-- Quiz Core Frame -->
+    <div id="quiz-body">
+        <div class="question-text" id="questionText">Loading question...</div>
+        <div class="options-container" id="optionsContainer"></div>
+        <div class="controls">
+            <button class="next-btn" id="nextBtn" onclick="nextQuestion()">Next Question</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // System to auto-generate 100 randomized mockup anatomy questions
+    function generateQuestionBank() {
+        const systems = ['Cardiovascular', 'Respiratory', 'Digestive', 'Endocrine', 'Nervous', 'Skeletal', 'Lymphatic', 'Urinary'];
+        const targets = ['filtration', 'absorption', 'regulation', 'secretion', 'conduction', 'protection'];
+        
+        let bank = [];
+        for (let i = 1; i <= 100; i++) {
+            let sys = systems[i % systems.length];
+            let task = targets[i % targets.length];
+            
+            bank.push({
+                question: `[Question ${i}] Which specific structural component optimization is primarily responsible for systemic cellular ${task} within the human ${sys} matrix environment?`,
+                correctAnswer: `Primary Functional Cell Cluster Type ${i}`,
+                distractors: [
+                    `Secondary Distractor Variant Alpha`,
+                    `Secondary Distractor Variant Beta`,
+                    `Secondary Distractor Variant Gamma`,
+                    `Secondary Distractor Variant Delta`,
+                    `Secondary Distractor Variant Epsilon`
+                ]
+            });
+        }
+        return bank;
+    }
+
+    const questionBank = generateQuestionBank();
+    let currentQuestionIndex = 0;
+    let currentCorrectAnswer = "";
+
+    // Build the visual 100-block table layout dynamically
+    function initializeProgressGrid() {
+        const grid = document.getElementById("progressGrid");
+        grid.innerHTML = "";
+        for (let i = 0; i < questionBank.length; i++) {
+            const block = document.createElement("div");
+            block.className = "progress-block";
+            block.id = `block-${i}`;
+            block.innerText = i + 1;
+            grid.appendChild(block);
+        }
+    }
+
+    function loadQuestion() {
+        const nextBtn = document.getElementById("nextBtn");
+        nextBtn.style.display = "none";
+        
+        const qData = questionBank[currentQuestionIndex];
+        currentCorrectAnswer = qData.correctAnswer;
+
+        // Manage active states across the tracker grid blocks
+        for (let i = 0; i < questionBank.length; i++) {
+            const block = document.getElementById(`block-${i}`);
+            block.classList.remove("active");
+        }
+        
+        const currentBlock = document.getElementById(`block-${currentQuestionIndex}`);
+        currentBlock.classList.add("active");
+        // Automatically scroll the progress tracker into view if it wraps downward
+        currentBlock.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+
+        document.getElementById("questionText").innerText = qData.question;
+
+        // --- CORE INCLUSION ENGINE LOGIC ---
+        // 1. Isolate distractors and pick 3 at random
+        const shuffledDistractors = [...qData.distractors].sort(() => 0.5 - Math.random());
+        const selectedDistractors = shuffledDistractors.slice(0, 3);
+
+        // 2. Insert correct answer directly to completely prevent absence vulnerabilities
+        const choicesArray = [currentCorrectAnswer, ...selectedDistractors];
+
+        // 3. Final blend shuffle execution
+        const finalShuffledOptions = choicesArray.sort(() => 0.5 - Math.random());
+
+        // Render to DOM
+        const container = document.getElementById("optionsContainer");
+        container.innerHTML = "";
+
+        finalShuffledOptions.forEach(option => {
+            const button = document.createElement("button");
+            button.className = "option-btn";
+            button.innerText = option;
+            button.onclick = () => handleAnswerSelection(button, option);
+            container.appendChild(button);
+        });
+    }
+
+    function handleAnswerSelection(selectedButton, selectedOption) {
+        const buttons = document.querySelectorAll(".option-btn");
+        buttons.forEach(btn => btn.disabled = true);
+
+        const currentBlock = document.getElementById(`block-${currentQuestionIndex}`);
+        currentBlock.classList.add("answered");
+
+        if (selectedOption === currentCorrectAnswer) {
+            selectedButton.classList.add("correct");
+        } else {
+            selectedButton.classList.add("wrong");
+            buttons.forEach(btn => {
+                if (btn.innerText === currentCorrectAnswer) {
+                    btn.classList.add("correct");
+                }
+            });
+        }
+
+        document.getElementById("nextBtn").style.display = "block";
+    }
+
+    function nextQuestion() {
+        currentQuestionIndex++;
+        if (currentQuestionIndex < questionBank.length) {
+            loadQuestion();
+        } else {
+            document.getElementById("quiz-body").innerHTML = `
+                <div class="question-text" style="text-align:center;">Comprehensive Exam Completed!</div>
+                <p style="text-align:center; color:#64748b;">All 100 tracker matrix blocks have been finalized.</p>
+                <div class="controls" style="justify-content:center;">
+                    <button class="next-btn" style="display:block;" onclick="resetQuiz()">Restart Exam</button>
+                </div>
+            `;
+        }
+    }
+
+    function resetQuiz() {
+        currentQuestionIndex = 0;
+        initializeProgressGrid();
+        document.getElementById("quiz-body").innerHTML = `
+            <div class="question-text" id="questionText">Loading question...</div>
+            <div class="options-container" id="optionsContainer"></div>
+            <div class="controls">
+                <button class="next-btn" id="nextBtn" onclick="nextQuestion()">Next Question</button>
+            </div>
+        `;
+        loadQuestion();
+    }
+
+    // Runtime entry point
+    initializeProgressGrid();
+    loadQuestion();
+</script>
+
+</body>
+</html>
